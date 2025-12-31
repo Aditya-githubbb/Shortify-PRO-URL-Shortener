@@ -1,5 +1,8 @@
 import 'dotenv/config';
 
+import fs from "fs";
+import path from "path";
+
 import cookieParser from "cookie-parser";
 import express from "express";
 import flash from "connect-flash";
@@ -12,39 +15,45 @@ import { shortenerRoutes } from "./routes/shortener.routes.js";
 
 const app = express();
 
+/* ===========================
+   ✅ ENSURE UPLOAD DIR EXISTS
+=========================== */
+const uploadDir = path.join(process.cwd(), "public/uploads/avatar");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+/* =========================== */
+
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
 app.set("view engine", "ejs");
-// app.set("views", "./views")
 
 app.use(cookieParser());
 
 app.use(
-  session({ secret: "my-secret", resave: true, saveUninitialized: false })
+  session({
+    secret: process.env.JWT_SECRET || "my-secret",
+    resave: true,
+    saveUninitialized: false,
+  })
 );
-app.use(flash());
 
+app.use(flash());
 app.use(requestIp.mw());
 
-// This must be after cookieParser middleware.
+// Must be after cookieParser
 app.use(verifyAuthentication);
 
 app.use((req, res, next) => {
   res.locals.user = req.user;
-  return next();
+  next();
 });
 
-// How It Works:
-// This middleware runs on every request before reaching the route handlers.
-//? res.locals is an object that persists throughout the request-response cycle.
-//? If req.user exists (typically from authentication, like Passport.js), it's stored in res.locals.user.
-//? Views (like EJS, Pug, or Handlebars) can directly access user without manually passing it in every route.
-
-// express router
-// app.use(router);
 app.use(authRoutes);
 app.use(shortenerRoutes);
 
